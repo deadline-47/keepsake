@@ -1,0 +1,138 @@
+import { useCallback, useRef, useState } from 'react'
+
+const MAX_FILE_MB = 50
+
+export default function UploadZone({ onFileSelected, disabled, error }) {
+  const [isDragging, setIsDragging] = useState(false)
+  const [localError, setLocalError] = useState('')
+  const inputRef = useRef(null)
+
+  const validateAndSend = useCallback(
+    (file) => {
+      if (!file) return
+      if (file.type !== 'application/pdf' && !file.name?.toLowerCase().endsWith('.pdf')) {
+        setLocalError('That file isn\u2019t a PDF. Choose a .pdf to bind into a book.')
+        return
+      }
+      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        setLocalError(`That PDF is larger than ${MAX_FILE_MB}MB. Try a smaller file.`)
+        return
+      }
+      setLocalError('')
+      onFileSelected(file)
+    },
+    [onFileSelected]
+  )
+
+  const handleDrop = useCallback(
+    (event) => {
+      event.preventDefault()
+      setIsDragging(false)
+      if (disabled) return
+      const file = event.dataTransfer.files?.[0]
+      validateAndSend(file)
+    },
+    [disabled, validateAndSend]
+  )
+
+  const handleDragOver = useCallback(
+    (event) => {
+      event.preventDefault()
+      if (!disabled) setIsDragging(true)
+    },
+    [disabled]
+  )
+
+  const handleDragLeave = useCallback((event) => {
+    event.preventDefault()
+    setIsDragging(false)
+  }, [])
+
+  const handleBrowseClick = () => {
+    if (!disabled) inputRef.current?.click()
+  }
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleBrowseClick()
+    }
+  }
+
+  const shownError = error || localError
+
+  return (
+    <div className="w-full max-w-sm">
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="Upload a PDF to turn into a flipbook"
+        aria-disabled={disabled}
+        onClick={handleBrowseClick}
+        onKeyDown={handleKeyDown}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`group relative select-none transition-transform duration-500 ease-out ${
+          disabled ? 'cursor-wait' : 'cursor-pointer'
+        } ${isDragging ? 'scale-[1.03]' : 'scale-100'}`}
+        style={{ aspectRatio: '3 / 4' }}
+      >
+        {/* Stacked pages peeking from behind the cover */}
+        <div className="absolute inset-0 translate-x-2 translate-y-2 rounded-r-md rounded-l-sm bg-parchment-dim/90 shadow-book" />
+        <div className="absolute inset-0 translate-x-1 translate-y-1 rounded-r-md rounded-l-sm bg-parchment/95 shadow-book" />
+
+        {/* Cover */}
+        <div
+          className={`absolute inset-0 rounded-r-md rounded-l-sm bg-gradient-to-br from-wine via-wine-deep to-ink-deep shadow-book ring-1 ring-gold/30 transition-all duration-500 ${
+            isDragging ? 'ring-2 ring-gold/70' : ''
+          }`}
+        >
+          <div className="pointer-events-none absolute left-0 top-0 h-full w-3 rounded-l-sm bg-black/25" />
+          <div className="flex h-full flex-col items-center justify-center gap-5 px-8 text-center">
+            <div
+              className={`flex h-14 w-14 items-center justify-center rounded-full border transition-all duration-300 ${
+                isDragging
+                  ? 'border-gold-bright bg-gold-bright/20 scale-110'
+                  : 'border-gold/60 bg-white/5 group-hover:border-gold-bright group-hover:bg-gold/10'
+              }`}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 4v11m0-11 4 4m-4-4-4 4M5 17v1.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V17"
+                  stroke="#e3bd72"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div>
+              <p className="font-display text-2xl italic text-parchment">
+                {disabled ? 'Binding your book\u2026' : 'Place your pages here'}
+              </p>
+              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-mist">
+                {disabled ? 'One moment' : 'Drop a PDF, or tap to choose one'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf,.pdf"
+          className="sr-only"
+          disabled={disabled}
+          onChange={(event) => validateAndSend(event.target.files?.[0])}
+        />
+      </div>
+
+      {shownError && (
+        <p role="alert" className="mt-4 text-center text-sm text-blush">
+          {shownError}
+        </p>
+      )}
+    </div>
+  )
+}

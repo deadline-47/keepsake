@@ -1,0 +1,31 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* react-pageflip renders its own inline-styled divs; these rules keep the
+   page canvases crisp and prevent the browser's default image drag/callout
+   affordances from fighting the flip gesture. */
+.stf__parent {
+  margin: 0 auto;
+}
+
+.stf__item img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
