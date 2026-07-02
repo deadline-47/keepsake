@@ -111,10 +111,20 @@ export default function Book() {
 
   const stageSize = useMemo(() => {
     const isMobile = viewport.width < 640
-    const maxHeight = Math.min(viewport.height * (isMobile ? 0.62 : 0.72), 760)
-    const maxWidth = Math.min(viewport.width * (isMobile ? 0.86 : 0.42), 620)
+    // A book whose pages are wider than they are tall (slides exported to
+    // PDF, most decks) needs a box that's allowed to go wide — the old
+    // fixed 42%-of-viewport cap was tuned for portrait pages only, which is
+    // what made landscape pages look squeezed. BookStage still fits the
+    // exact aspect ratio inside whichever box we hand it here.
+    const isLandscape = aspectRatio > 1.05
+    const maxHeight = isLandscape
+      ? Math.min(viewport.height * (isMobile ? 0.5 : 0.62), 620)
+      : Math.min(viewport.height * (isMobile ? 0.62 : 0.72), 760)
+    const maxWidth = isLandscape
+      ? Math.min(viewport.width * (isMobile ? 0.92 : 0.8), 980)
+      : Math.min(viewport.width * (isMobile ? 0.86 : 0.42), 620)
     return { width: maxWidth, height: maxHeight }
-  }, [viewport])
+  }, [viewport, aspectRatio])
 
   const handleFlip = useCallback(
     (event) => {
@@ -163,10 +173,10 @@ export default function Book() {
     <main className="relative flex min-h-screen flex-col items-center justify-between overflow-hidden bg-ink px-4 py-8 sm:px-8">
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[70vmin] w-[70vmin] -translate-x-1/2 -translate-y-1/2 rounded-full bg-wine/20 blur-[160px]" />
 
-      <header className="relative z-10 flex w-full max-w-3xl items-center justify-between">
+      <header className="relative z-10 flex w-full max-w-3xl items-center justify-between rounded-full border border-white/[0.06] bg-white/[0.03] px-4 py-2.5 shadow-lg shadow-black/20 backdrop-blur-md">
         <Link
           to="/"
-          className="font-display text-lg italic text-parchment/80 transition-colors hover:text-gold-bright"
+          className="rounded-full px-2 py-1 font-display text-lg italic text-parchment/80 transition-colors duration-300 hover:text-gold-bright"
         >
           ← Keepsake
         </Link>
@@ -180,7 +190,7 @@ export default function Book() {
           onClick={() => setSoundOn((prev) => !prev)}
           aria-pressed={soundOn}
           aria-label={soundOn ? 'Mute page-turn sound' : 'Unmute page-turn sound'}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-mist transition-colors hover:border-gold/50 hover:text-gold-bright"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-mist shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gold/50 hover:bg-gold/10 hover:text-gold-bright hover:shadow-md active:translate-y-0 active:scale-95"
         >
           {soundOn ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -244,7 +254,7 @@ function NavArrow({ direction, onClick, disabled }) {
       onClick={onClick}
       disabled={disabled}
       aria-label={isPrev ? 'Previous page' : 'Next page'}
-      className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-parchment/70 transition-all duration-200 hover:border-gold/50 hover:text-gold-bright disabled:pointer-events-none disabled:opacity-0 sm:flex"
+      className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-parchment/70 shadow-md shadow-black/20 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gold/50 hover:bg-gold/10 hover:text-gold-bright hover:shadow-lg hover:shadow-gold/10 active:translate-y-0 active:scale-95 disabled:pointer-events-none disabled:opacity-0 sm:flex"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -266,7 +276,7 @@ function StatusScreen({ title, detail }) {
       <p className="max-w-sm text-sm text-mist">{detail}</p>
       <Link
         to="/"
-        className="mt-4 rounded-full border border-gold/40 px-5 py-2 text-xs uppercase tracking-[0.2em] text-gold-bright transition-colors hover:border-gold-bright hover:bg-gold/10"
+        className="mt-4 rounded-full border border-gold/40 bg-gold/5 px-6 py-2.5 text-xs uppercase tracking-[0.2em] text-gold-bright shadow-md shadow-black/20 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gold-bright hover:bg-gold/15 hover:shadow-lg hover:shadow-gold/10 active:translate-y-0 active:scale-95"
       >
         Start a new book
       </Link>

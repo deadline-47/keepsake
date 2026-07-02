@@ -40,7 +40,7 @@ function NotFound() {
       </p>
       <a
         href="/"
-        className="mt-4 rounded-full border border-gold/40 px-5 py-2 text-xs uppercase tracking-[0.2em] text-gold-bright transition-colors hover:border-gold-bright hover:bg-gold/10"
+        className="mt-4 rounded-full border border-gold/40 bg-gold/5 px-6 py-2.5 text-xs uppercase tracking-[0.2em] text-gold-bright shadow-md shadow-black/20 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gold-bright hover:bg-gold/15 hover:shadow-lg hover:shadow-gold/10 active:translate-y-0 active:scale-95"
       >
         Go home
       </a>

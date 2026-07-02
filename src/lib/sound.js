@@ -1,11 +1,24 @@
-// A small self-contained "page turn" sound designed with the Web Audio API.
-// Synthesizing it avoids shipping a binary asset and avoids any licensing
-// question around a sampled sound effect — it's built from noise + filters
-// to mimic the soft crinkle-and-whoosh of a paper page turning.
+// Page-turn sound.
+//
+// Preferred sound: a real recorded book-flip sample, loaded from
+// `/sounds/page-turn.mp3` (a local file in the `public/sounds/` folder —
+// see public/sounds/README.md for where to get one). Loading it locally
+// rather than hotlinking a third-party CDN keeps the sound reliable: no
+// external host to go down, rate-limit, or change its URL later.
+//
+// Fallback: if that file is missing (e.g. a fresh checkout before anyone
+// has added one) or fails to load, we synthesize a soft paper-flutter
+// sound with the Web Audio API instead, so page turns are never silent.
 
+const AUDIO_SRC = '/sounds/page-turn.mp3'
+const POOL_SIZE = 4
+
+let pool = []
+let poolReady = false
+let useFallback = false
 let sharedContext = null
 
-function getContext() {
+function getAudioContext() {
   if (typeof window === 'undefined') return null
   if (!sharedContext) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext
@@ -15,11 +28,46 @@ function getContext() {
   return sharedContext
 }
 
-/** Must be called from a user gesture handler on iOS/Safari to unlock audio. */
-export function primeAudio() {
-  const ctx = getContext()
-  if (ctx && ctx.state === 'suspended') {
-    ctx.resume().catch(() => {})
+function ensurePool() {
+  if (poolReady || typeof window === 'undefined' || typeof Audio === 'undefined') return
+  poolReady = true
+
+  const probe = new Audio()
+  probe.addEventListener(
+    'error',
+    () => {
+      useFallback = true
+    },
+    { once: true }
+  )
+  probe.preload = 'auto'
+  probe.src = AUDIO_SRC
+
+  pool = Array.from({ length: POOL_SIZE }, () => {
+    const audio = new Audio(AUDIO_SRC)
+    audio.preload = 'auto'
+    audio.volume = 0.5
+    return audio
+  })
+}
+
+let poolIndex = 0
+
+function playFromPool(volume) {
+  const audio = pool[poolIndex]
+  poolIndex = (poolIndex + 1) % pool.length
+  try {
+    audio.currentTime = 0
+    audio.volume = Math.min(Math.max(volume, 0), 1)
+    const playPromise = audio.play()
+    if (playPromise && typeof playPromise.catch === 'function') {
+      // Autoplay restrictions can reject this even from a user gesture in
+      // rare cases (e.g. very first interaction on iOS); fall back
+      // silently to the synthesized sound rather than throwing.
+      playPromise.catch(() => playSynthesizedFlip(volume))
+    }
+  } catch {
+    playSynthesizedFlip(volume)
   }
 }
 
@@ -28,30 +76,21 @@ function makeNoiseBuffer(ctx, durationSeconds) {
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
   const data = buffer.getChannelData(0)
   for (let i = 0; i < bufferSize; i += 1) {
-    // Exponential decay envelope applied to white noise, so the burst
-    // sounds like a quick paper flutter rather than a flat hiss.
     const decay = 1 - i / bufferSize
     data[i] = (Math.random() * 2 - 1) * decay ** 1.6
   }
   return buffer
 }
 
-/**
- * Plays a short synthesized page-turn sound: a filtered noise "flutter"
- * plus a soft tonal "tap" for the moment the page settles.
- * @param {number} volume 0..1
- */
-export function playPageTurnSound(volume = 0.35) {
-  const ctx = getContext()
+function playSynthesizedFlip(volume) {
+  const ctx = getAudioContext()
   if (!ctx) return
-  primeAudio()
 
   const now = ctx.currentTime
   const master = ctx.createGain()
   master.gain.value = Math.min(Math.max(volume, 0), 1)
   master.connect(ctx.destination)
 
-  // --- Paper flutter (filtered noise burst) ---
   const noiseDuration = 0.28
   const noise = ctx.createBufferSource()
   noise.buffer = makeNoiseBuffer(ctx, noiseDuration)
@@ -71,7 +110,6 @@ export function playPageTurnSound(volume = 0.35) {
   bandpass.connect(noiseGain)
   noiseGain.connect(master)
 
-  // --- Soft settle "tap" ---
   const tap = ctx.createOscillator()
   tap.type = 'sine'
   tap.frequency.setValueAtTime(220, now + noiseDuration * 0.7)
@@ -89,4 +127,27 @@ export function playPageTurnSound(volume = 0.35) {
   noise.stop(now + noiseDuration + 0.02)
   tap.start(now + noiseDuration * 0.7)
   tap.stop(now + noiseDuration + 0.2)
+}
+
+/** Must be called from a user gesture handler to unlock audio on iOS/Safari. */
+export function primeAudio() {
+  ensurePool()
+  const ctx = getAudioContext()
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume().catch(() => {})
+  }
+}
+
+/**
+ * Plays a page-turn sound: the real recorded sample if it's available,
+ * otherwise a synthesized paper-flutter as a graceful fallback.
+ * @param {number} volume 0..1
+ */
+export function playPageTurnSound(volume = 0.45) {
+  ensurePool()
+  if (useFallback || pool.length === 0) {
+    playSynthesizedFlip(volume)
+    return
+  }
+  playFromPool(volume)
 }

@@ -42,8 +42,10 @@ export default function ShareSeal({ url }) {
         type="button"
         onClick={handleClick}
         aria-label="Copy the shareable link to this book"
-        className={`group relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-gold-bright to-gold text-ink-deep shadow-seal transition-transform duration-300 ease-out focus-visible:outline-none ${
-          state === 'stamping' ? 'scale-90' : 'hover:scale-105 active:scale-90'
+        className={`group relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-gold-bright to-gold text-ink-deep shadow-seal transition-all duration-300 ease-out focus-visible:outline-none ${
+          state === 'stamping'
+            ? 'scale-90'
+            : 'hover:-translate-y-0.5 hover:scale-105 hover:shadow-lg hover:shadow-gold/30 active:translate-y-0 active:scale-90'
         }`}
       >
         <span className="absolute inset-0 rounded-full ring-1 ring-white/40" />
