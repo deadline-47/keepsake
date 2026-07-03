@@ -5,7 +5,14 @@ import ShareSeal from '../components/ShareSeal.jsx'
 import ProgressRibbon from '../components/ProgressRibbon.jsx'
 import { renderPdfToPageImages } from '../lib/pdfToImages.js'
 import { playPageTurnSound, primeAudio } from '../lib/sound.js'
+import { useBackgroundPlaylist } from '../lib/useBackgroundPlaylist.js'
 import { supabase, isSupabaseConfigured, BOOKS_TABLE, PDF_BUCKET } from '../lib/supabaseClient.js'
+
+// Add up to a few tracks here — see public/music/README.md for where to
+// put the actual files. They play in this order, then loop back to the
+// start, only while this book page is open.
+const BACKGROUND_TRACKS = ['/music/track-1.mp3', '/music/track-2.mp3', '/music/track-3.mp3']
+const BACKGROUND_VOLUME = 0.14
 
 function useViewportSize() {
   const [size, setSize] = useState({
@@ -34,6 +41,10 @@ export default function Book() {
   const [soundOn, setSoundOn] = useState(true)
   const flipBookRef = useRef(null)
   const viewport = useViewportSize()
+  const { enabled: musicOn, arm: armMusic, toggle: toggleMusic } = useBackgroundPlaylist(
+    BACKGROUND_TRACKS,
+    BACKGROUND_VOLUME
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -130,19 +141,22 @@ export default function Book() {
     (event) => {
       setCurrentPage(event.data)
       if (soundOn) playPageTurnSound(0.3)
+      armMusic()
     },
-    [soundOn]
+    [soundOn, armMusic]
   )
 
-  const goNext = () => {
+  const goNext = useCallback(() => {
     primeAudio()
+    armMusic()
     flipBookRef.current?.pageFlip()?.flipNext()
-  }
+  }, [armMusic])
 
-  const goPrev = () => {
+  const goPrev = useCallback(() => {
     primeAudio()
+    armMusic()
     flipBookRef.current?.pageFlip()?.flipPrev()
-  }
+  }, [armMusic])
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -152,7 +166,7 @@ export default function Book() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [phase])
+  }, [phase, goNext, goPrev])
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
 
@@ -185,25 +199,58 @@ export default function Book() {
             {book.title}
           </h1>
         )}
-        <button
-          type="button"
-          onClick={() => setSoundOn((prev) => !prev)}
-          aria-pressed={soundOn}
-          aria-label={soundOn ? 'Mute page-turn sound' : 'Unmute page-turn sound'}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-mist shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gold/50 hover:bg-gold/10 hover:text-gold-bright hover:shadow-md active:translate-y-0 active:scale-95"
-        >
-          {soundOn ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 9v6h4l5 4V5L8 9H4Z" fill="currentColor" />
-              <path d="M17 8a5 5 0 0 1 0 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 9v6h4l5 4V5L8 9H4Z" fill="currentColor" />
-              <path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleMusic}
+            aria-pressed={musicOn}
+            aria-label={musicOn ? 'Turn off background music' : 'Turn on background music'}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-mist shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gold/50 hover:bg-gold/10 hover:text-gold-bright hover:shadow-md active:translate-y-0 active:scale-95"
+          >
+            {musicOn ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M9 18V5l11-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm11-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M9 18V5l11-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm11-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity="0.4"
+                />
+                <path d="M4 4l16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSoundOn((prev) => !prev)}
+            aria-pressed={soundOn}
+            aria-label={soundOn ? 'Mute page-turn sound' : 'Unmute page-turn sound'}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-mist shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gold/50 hover:bg-gold/10 hover:text-gold-bright hover:shadow-md active:translate-y-0 active:scale-95"
+          >
+            {soundOn ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 9v6h4l5 4V5L8 9H4Z" fill="currentColor" />
+                <path d="M17 8a5 5 0 0 1 0 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 9v6h4l5 4V5L8 9H4Z" fill="currentColor" />
+                <path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
+        </div>
       </header>
 
       <div className="relative z-10 flex flex-1 items-center justify-center py-8">
@@ -219,7 +266,11 @@ export default function Book() {
 
         {phase === 'ready' && pages.length > 0 && (
           <div className="flex flex-col items-center gap-6">
-            <div className="flex items-center gap-3 sm:gap-6">
+            <div
+              className="flex items-center gap-3 sm:gap-6"
+              onClick={armMusic}
+              onPointerDown={armMusic}
+            >
               <NavArrow direction="prev" onClick={goPrev} disabled={currentPage === 0} />
               <BookStage
                 ref={flipBookRef}
