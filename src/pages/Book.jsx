@@ -41,10 +41,13 @@ export default function Book() {
   const [soundOn, setSoundOn] = useState(true)
   const flipBookRef = useRef(null)
   const viewport = useViewportSize()
-  const { enabled: musicOn, arm: armMusic, toggle: toggleMusic } = useBackgroundPlaylist(
-    BACKGROUND_TRACKS,
-    BACKGROUND_VOLUME
-  )
+  const {
+    enabled: musicOn,
+    armed: musicArmed,
+    status: musicStatus,
+    arm: armMusic,
+    toggle: toggleMusic,
+  } = useBackgroundPlaylist(BACKGROUND_TRACKS, BACKGROUND_VOLUME)
 
   useEffect(() => {
     let cancelled = false
@@ -140,21 +143,21 @@ export default function Book() {
   const handleFlip = useCallback(
     (event) => {
       setCurrentPage(event.data)
-      if (soundOn) playPageTurnSound(0.3)
       armMusic()
+      if (soundOn) playPageTurnSound(0.3)
     },
     [soundOn, armMusic]
   )
 
   const goNext = useCallback(() => {
-    primeAudio()
     armMusic()
+    primeAudio()
     flipBookRef.current?.pageFlip()?.flipNext()
   }, [armMusic])
 
   const goPrev = useCallback(() => {
-    primeAudio()
     armMusic()
+    primeAudio()
     flipBookRef.current?.pageFlip()?.flipPrev()
   }, [armMusic])
 
@@ -166,10 +169,12 @@ export default function Book() {
   // user" and allow audio.play() to succeed. Using the *capture* phase on
   // this wrapper means our handler runs the instant the finger touches
   // down, before the library gets a chance to swallow the event, so audio
-  // reliably unlocks on the very first swipe.
+  // reliably unlocks on the very first swipe. Music is armed first, ahead
+  // of the page-turn sound effect, so a hiccup in one can never block
+  // the other.
   const handleBookInteraction = useCallback(() => {
-    primeAudio()
     armMusic()
+    primeAudio()
   }, [armMusic])
 
   useEffect(() => {
@@ -280,6 +285,42 @@ export default function Book() {
 
         {phase === 'ready' && pages.length > 0 && (
           <div className="flex flex-col items-center gap-6">
+            {!musicArmed && musicOn && (
+              <button
+                type="button"
+                onClick={armMusic}
+                className="flex items-center gap-2 rounded-full border border-gold/30 bg-gold/5 px-4 py-2 text-xs uppercase tracking-[0.15em] text-gold-bright shadow-md shadow-black/20 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gold-bright hover:bg-gold/15 active:translate-y-0 active:scale-95"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M9 18V5l11-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm11-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Play our song
+              </button>
+            )}
+
+            {musicStatus === 'missing' && (
+              <p role="alert" className="max-w-xs text-center text-xs text-blush">
+                The music files didn’t load — double check public/music/track-1.mp3
+                (etc.) exist in the deployed site with those exact names.
+              </p>
+            )}
+
+            {musicStatus === 'blocked' && musicArmed && (
+              <button
+                type="button"
+                onClick={armMusic}
+                className="text-xs uppercase tracking-[0.15em] text-blush underline decoration-dotted underline-offset-4"
+              >
+                Music was blocked — tap to try again
+              </button>
+            )}
+
             <div
               className="flex items-center gap-3 sm:gap-6"
               onPointerDownCapture={handleBookInteraction}

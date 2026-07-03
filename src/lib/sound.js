@@ -23,7 +23,17 @@ function getAudioContext() {
   if (!sharedContext) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext
     if (!AudioContextClass) return null
-    sharedContext = new AudioContextClass()
+    try {
+      sharedContext = new AudioContextClass()
+    } catch {
+      // Some mobile browsers (particularly in-app browsers embedded in
+      // messaging apps) throw here instead of just failing quietly. This
+      // must never bubble up — primeAudio() and playPageTurnSound() are
+      // called from the same interaction handler that also starts the
+      // background music, and an uncaught throw here would abort that
+      // handler before the music code even ran.
+      return null
+    }
   }
   return sharedContext
 }
@@ -131,10 +141,18 @@ function playSynthesizedFlip(volume) {
 
 /** Must be called from a user gesture handler to unlock audio on iOS/Safari. */
 export function primeAudio() {
-  ensurePool()
-  const ctx = getAudioContext()
-  if (ctx && ctx.state === 'suspended') {
-    ctx.resume().catch(() => {})
+  // This is deliberately paranoid: primeAudio() is called from the same
+  // interaction handler that also starts the background music, and this
+  // function existing purely to help the page-turn *sound effect* must
+  // never be able to break background *music* by throwing partway through.
+  try {
+    ensurePool()
+    const ctx = getAudioContext()
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+  } catch {
+    // Swallow — see above.
   }
 }
 
@@ -144,10 +162,15 @@ export function primeAudio() {
  * @param {number} volume 0..1
  */
 export function playPageTurnSound(volume = 0.45) {
-  ensurePool()
-  if (useFallback || pool.length === 0) {
-    playSynthesizedFlip(volume)
-    return
+  try {
+    ensurePool()
+    if (useFallback || pool.length === 0) {
+      playSynthesizedFlip(volume)
+      return
+    }
+    playFromPool(volume)
+  } catch {
+    // Never let a page-turn sound failure take down anything else running
+    // in the same interaction handler.
   }
-  playFromPool(volume)
 }

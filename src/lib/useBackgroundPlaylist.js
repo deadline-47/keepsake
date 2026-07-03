@@ -22,6 +22,9 @@ export function useBackgroundPlaylist(tracks, volume = 0.14) {
   const fadeFrameRef = useRef(null)
   const [enabled, setEnabled] = useState(true)
   const [armed, setArmed] = useState(false)
+  // 'idle' | 'playing' | 'blocked' (browser refused play() despite a
+  // gesture) | 'missing' (every track 404'd / failed to decode)
+  const [status, setStatus] = useState('idle')
 
   const fadeTo = useCallback((target) => {
     const audio = audioRef.current
@@ -46,14 +49,32 @@ export function useBackgroundPlaylist(tracks, volume = 0.14) {
       if (!audio || tracks.length === 0) return
       audio.src = tracks[index]
       audio.volume = 0
-      audio
-        .play()
-        .then(() => fadeTo(volume))
-        .catch(() => {
-          // Autoplay was refused (rare once armed, since arm() is always
-          // called from a gesture) — just leave it silent rather than
-          // throwing; the toggle button still lets her retry.
-        })
+      try {
+        const playResult = audio.play()
+        if (playResult && typeof playResult.then === 'function') {
+          playResult
+            .then(() => {
+              setStatus('playing')
+              fadeTo(volume)
+            })
+            .catch(() => {
+              // The browser refused play() even though arm() is only ever
+              // called from inside a real gesture handler — some locked-down
+              // in-app browsers (e.g. certain webviews opened from a chat
+              // app) impose extra restrictions beyond the normal spec.
+              // Surface this rather than failing silently.
+              setStatus('blocked')
+            })
+        } else {
+          // A handful of older/embedded WebViews don't return a Promise
+          // from play() at all — assume it worked rather than treating the
+          // missing Promise as a failure.
+          setStatus('playing')
+          fadeTo(volume)
+        }
+      } catch {
+        setStatus('blocked')
+      }
     },
     [tracks, volume, fadeTo]
   )
@@ -81,6 +102,8 @@ export function useBackgroundPlaylist(tracks, volume = 0.14) {
       if (failCountRef.current < tracks.length) {
         trackIndexRef.current = (trackIndexRef.current + 1) % tracks.length
         loadAndPlay(trackIndexRef.current)
+      } else {
+        setStatus('missing')
       }
     }
 
@@ -136,5 +159,5 @@ export function useBackgroundPlaylist(tracks, volume = 0.14) {
     })
   }, [armed, volume, fadeTo, loadAndPlay])
 
-  return { enabled, arm, toggle }
+  return { enabled, armed, status, arm, toggle }
 }
