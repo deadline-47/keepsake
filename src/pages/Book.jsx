@@ -158,6 +158,20 @@ export default function Book() {
     flipBookRef.current?.pageFlip()?.flipPrev()
   }, [armMusic])
 
+  // On mobile there are no visible nav-arrow buttons to tap (navigation is
+  // by swipe), and the flip library's own touch handling runs before our
+  // events would normally bubble up to us — by the time our onFlip
+  // callback fires the flip animation has already finished, which is too
+  // late for a mobile browser to still consider it "triggered by the
+  // user" and allow audio.play() to succeed. Using the *capture* phase on
+  // this wrapper means our handler runs the instant the finger touches
+  // down, before the library gets a chance to swallow the event, so audio
+  // reliably unlocks on the very first swipe.
+  const handleBookInteraction = useCallback(() => {
+    primeAudio()
+    armMusic()
+  }, [armMusic])
+
   useEffect(() => {
     function handleKeyDown(event) {
       if (phase !== 'ready') return
@@ -268,8 +282,9 @@ export default function Book() {
           <div className="flex flex-col items-center gap-6">
             <div
               className="flex items-center gap-3 sm:gap-6"
-              onClick={armMusic}
-              onPointerDown={armMusic}
+              onPointerDownCapture={handleBookInteraction}
+              onTouchStartCapture={handleBookInteraction}
+              onClickCapture={handleBookInteraction}
             >
               <NavArrow direction="prev" onClick={goPrev} disabled={currentPage === 0} />
               <BookStage

@@ -108,12 +108,22 @@ export function useBackgroundPlaylist(tracks, volume = 0.14) {
     loadAndPlay(trackIndexRef.current)
   }, [armed, enabled, tracks.length, loadAndPlay])
 
-  /** Mute/unmute without losing playlist position. */
+  /** Mute/unmute without losing playlist position. Also doubles as a
+   * manual start if she taps the music icon before ever swiping/tapping
+   * the book itself — without this, tapping the icon while unarmed would
+   * just flip a flag with nothing audible happening. */
   const toggle = useCallback(() => {
+    if (!armed) {
+      setEnabled(true)
+      setArmed(true)
+      loadAndPlay(trackIndexRef.current)
+      return
+    }
+
     setEnabled((prev) => {
       const next = !prev
       const audio = audioRef.current
-      if (audio && armed) {
+      if (audio) {
         if (next) {
           audio.play().catch(() => {})
           fadeTo(volume)
@@ -124,7 +134,7 @@ export function useBackgroundPlaylist(tracks, volume = 0.14) {
       }
       return next
     })
-  }, [armed, volume, fadeTo])
+  }, [armed, volume, fadeTo, loadAndPlay])
 
   return { enabled, arm, toggle }
 }

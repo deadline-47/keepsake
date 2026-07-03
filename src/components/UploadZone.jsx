@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useId, useRef, useState } from 'react'
 
 const MAX_FILE_MB = 50
 
@@ -6,6 +6,7 @@ export default function UploadZone({ onFileSelected, disabled, error }) {
   const [isDragging, setIsDragging] = useState(false)
   const [localError, setLocalError] = useState('')
   const inputRef = useRef(null)
+  const inputId = useId()
 
   const validateAndSend = useCallback(
     (file) => {
@@ -48,14 +49,13 @@ export default function UploadZone({ onFileSelected, disabled, error }) {
     setIsDragging(false)
   }, [])
 
-  const handleBrowseClick = () => {
-    if (!disabled) inputRef.current?.click()
-  }
-
+  // Keyboard-only fallback (Enter/Space). Pointer/touch taps are handled
+  // natively by the <label for="..."> association below — that's the part
+  // that matters for mobile reliability, see note on the label itself.
   const handleKeyDown = (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
+    if ((event.key === 'Enter' || event.key === ' ') && !disabled) {
       event.preventDefault()
-      handleBrowseClick()
+      inputRef.current?.click()
     }
   }
 
@@ -63,20 +63,27 @@ export default function UploadZone({ onFileSelected, disabled, error }) {
 
   return (
     <div className="w-full max-w-sm">
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label="Upload a PDF to turn into a flipbook"
+      {/*
+        This is a real <label> associated with the file input via
+        htmlFor/id, not a div with an onClick that calls input.click().
+        Programmatically clicking a hidden file input from JS is known to
+        be unreliable on mobile Safari and inside in-app browsers (e.g. a
+        messaging app's built-in browser) — a native label/input pairing is
+        the pattern mobile browsers handle correctly, since it's the
+        browser itself opening the picker rather than a script asking it to.
+      */}
+      <label
+        htmlFor={inputId}
         aria-disabled={disabled}
-        onClick={handleBrowseClick}
+        tabIndex={0}
         onKeyDown={handleKeyDown}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`group relative select-none transition-transform duration-500 ease-out ${
-          disabled ? 'cursor-wait' : 'cursor-pointer'
+        className={`group relative block select-none transition-transform duration-500 ease-out ${
+          disabled ? 'pointer-events-none cursor-wait' : 'cursor-pointer'
         } ${isDragging ? 'scale-[1.03]' : 'scale-100'}`}
-        style={{ aspectRatio: '3 / 4' }}
+        style={{ aspectRatio: '3 / 4', minHeight: '320px' }}
       >
         {/* Stacked pages peeking from behind the cover */}
         <div className="absolute inset-0 translate-x-2 translate-y-2 rounded-r-md rounded-l-sm bg-parchment-dim/90 shadow-book" />
@@ -120,13 +127,14 @@ export default function UploadZone({ onFileSelected, disabled, error }) {
 
         <input
           ref={inputRef}
+          id={inputId}
           type="file"
           accept="application/pdf,.pdf"
           className="sr-only"
           disabled={disabled}
           onChange={(event) => validateAndSend(event.target.files?.[0])}
         />
-      </div>
+      </label>
 
       {shownError && (
         <p role="alert" className="mt-4 text-center text-sm text-blush">
