@@ -1,5 +1,10 @@
 import * as pdfjsLib from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+// `?worker&url` is Vite's documented suffix for "bundle this file's own
+// imports into a standalone worker-ready chunk, then give me its URL" —
+// unlike plain `?url` (which just copies a file verbatim and would leave
+// this file's `import` statements unresolved) or a bare
+// `new URL(..., import.meta.url)` (which is for static, non-JS assets).
+import pdfWorkerUrl from './pdfWorkerEntry.js?worker&url'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
