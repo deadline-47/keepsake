@@ -11,7 +11,12 @@ import { supabase, isSupabaseConfigured, BOOKS_TABLE, PDF_BUCKET } from '../lib/
 // Add up to a few tracks here — see public/music/README.md for where to
 // put the actual files. They play in this order, then loop back to the
 // start, only while this book page is open.
-const BACKGROUND_TRACKS = ['/music/track-1.mp3', '/music/track-2.mp3', '/music/track-3.mp3']
+const BACKGROUND_TRACKS = [
+  '/music/track-1.mp3',
+  '/music/track-2.mp3',
+  '/music/track-3.mp3',
+  '/music/track-4.mp3',
+]
 const BACKGROUND_VOLUME = 0.14
 
 function useViewportSize() {

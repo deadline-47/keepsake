@@ -1,18 +1,19 @@
 # Background music
 
-Drop up to 3 songs in this folder, named exactly:
+Drop 4 songs in this folder, named exactly:
 
 ```
 public/music/track-1.mp3
 public/music/track-2.mp3
 public/music/track-3.mp3
+public/music/track-4.mp3
 ```
 
-They play in that order — track 1, then 2, then 3 — then loop back to
-track 1, for as long as she's on the book page. It only plays there, never
-on the homepage, and only starts once she interacts with the book (flips a
-page or taps an arrow) — browsers block audio from starting on its own
-before that.
+They play in that order — track 1, then 2, then 3, then 4 — then loop back
+to track 1, for as long as she's on the book page. It only plays there,
+never on the homepage, and only starts once she interacts with the book
+(flips a page, taps an arrow, or taps the music icon) — browsers block
+audio from starting on its own before that.
 
 ## Want more or fewer than 3?
 
